@@ -1,0 +1,672 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Otthon Start lakásfigyelő</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..100,500..800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: sticky summary bar · filter rail + dense listing table · slide-in detail drawer */
+:root{
+  --bg:#f3f5f4; --surface:#ffffff; --sunk:#e8ecea; --line:#d5dcd9;
+  --fg:#17211e; --muted:#5b6964; --accent:#1d5a7a; --accent-soft:#dbe9f1;
+  --good:#1f7a4d; --good-soft:#dcefe4; --warn:#9a6400; --warn-soft:#f6ead1;
+  --bad:#a63a2e; --bad-soft:#f5dfdb; --sample:#6b4f9a; --sample-soft:#ebe4f5;
+  --shadow:0 10px 40px rgba(20,35,30,.18);
+  --f-display:"Archivo","Arial Narrow",Arial,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#101614; --surface:#18201d; --sunk:#202a27; --line:#2f3b37;
+  --fg:#e3ebe8; --muted:#93a39d; --accent:#7cb8d8; --accent-soft:#1d3442;
+  --good:#6fcf9b; --good-soft:#18352a; --warn:#e3b158; --warn-soft:#3a2f17;
+  --bad:#ef8b7e; --bad-soft:#3d221e; --sample:#b9a0e6; --sample-soft:#2d2540;
+  --shadow:0 10px 40px rgba(0,0,0,.5); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#101614; --surface:#18201d; --sunk:#202a27; --line:#2f3b37;
+  --fg:#e3ebe8; --muted:#93a39d; --accent:#7cb8d8; --accent-soft:#1d3442;
+  --good:#6fcf9b; --good-soft:#18352a; --warn:#e3b158; --warn-soft:#3a2f17;
+  --bad:#ef8b7e; --bad-soft:#3d221e; --sample:#b9a0e6; --sample-soft:#2d2540;
+  --shadow:0 10px 40px rgba(0,0,0,.5); color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:14px;line-height:1.45}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
+h1,h2,h3{font-family:var(--f-display);font-stretch:85%;margin:0;text-wrap:balance}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.num{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.wrap{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+
+/* top bar */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--surface);border-bottom:1px solid var(--line)}
+.top-in{display:flex;flex-wrap:wrap;align-items:center;gap:10px 24px;padding-block:12px;max-width:1400px;margin:0 auto}
+.brand{display:flex;flex-direction:column;gap:2px;margin-right:auto;min-width:0}
+.brand h1{font-size:22px;font-weight:800;letter-spacing:-.01em}
+.brand small{color:var(--muted);font-size:12px}
+.stats{display:flex;flex-wrap:wrap;gap:6px 22px}
+.stat{display:flex;flex-direction:column}
+.stat b{font-family:var(--f-mono);font-size:17px;font-weight:500}
+.stat span{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.stat.deadline b{color:var(--warn)}
+
+/* banner */
+.banner{max-width:1400px;margin:12px auto 0;display:flex;gap:10px;align-items:flex-start;background:var(--sample-soft);color:var(--fg);border:1px solid color-mix(in srgb,var(--sample) 35%,transparent);border-radius:8px;padding:10px 14px;font-size:13px}
+.banner b{color:var(--sample)}
+
+/* main grid */
+.main{max-width:1400px;margin:0 auto;padding-block:16px 40px;display:grid;grid-template-columns:260px minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:900px){.main{grid-template-columns:minmax(0,1fr)}}
+
+.filters{position:sticky;top:calc(env(safe-area-inset-top,0px) + 84px);display:flex;flex-direction:column;gap:14px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px}
+@media (max-width:900px){.filters{position:static}.filters:not(.open) .fbody{display:none}}
+.fhead{display:flex;justify-content:space-between;align-items:center}
+.fhead h2{font-size:15px;text-transform:uppercase;letter-spacing:.06em}
+.ftoggle{display:none}
+@media (max-width:900px){.ftoggle{display:inline-flex}}
+.fbody{display:flex;flex-direction:column;gap:14px}
+.field{display:flex;flex-direction:column;gap:5px}
+.field>label,.field>.lbl{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600}
+.field input[type=search],.field input[type=number],.field select{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:7px 9px}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.chk{display:flex;gap:8px;align-items:center;font-size:13px;cursor:pointer}
+.chk input{accent-color:var(--accent);width:16px;height:16px}
+.dists{display:flex;flex-wrap:wrap;gap:4px}
+.dchip{border:1px solid var(--line);background:var(--bg);border-radius:4px;padding:2px 6px;font-family:var(--f-mono);font-size:12px;cursor:pointer}
+.dchip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--surface)}
+.btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--surface);border-radius:6px;padding:6px 11px;cursor:pointer;font-size:13px;font-weight:500}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--surface)}
+.btn[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+.linkbtn{background:none;border:0;color:var(--accent);cursor:pointer;padding:0;font-size:12px;text-decoration:underline}
+
+/* list */
+.listhead{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;justify-content:space-between;margin-bottom:10px}
+.listhead h2{font-size:18px}
+.listhead .count{color:var(--muted);font-size:13px}
+.tablewrap{overflow:auto;max-height:max(360px,calc(100dvh - 190px - env(safe-area-inset-top,0px)));overscroll-behavior:contain;background:var(--surface);border:1px solid var(--line);border-radius:10px}
+table{width:100%;border-collapse:collapse;min-width:900px}
+th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600;padding:10px 10px;border-bottom:1px solid var(--line);white-space:nowrap;cursor:pointer;user-select:none;background:var(--surface);position:sticky;top:0;z-index:2;box-shadow:inset 0 -1px 0 var(--line)}
+th.r,td.r{text-align:right}
+th[aria-sort="ascending"]::after{content:" ▲";color:var(--accent)}
+th[aria-sort="descending"]::after{content:" ▼";color:var(--accent)}
+td{padding:10px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
+tbody tr{cursor:pointer}
+tbody tr:hover td{background:var(--sunk)}
+tbody tr.sel td{background:var(--accent-soft)}
+tbody tr:last-child td{border-bottom:0}
+.addr{display:flex;flex-direction:column;min-width:0}
+.addr b{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:300px}
+.addr small{color:var(--muted);font-size:12px}
+.dist{font-family:var(--f-mono);font-weight:500;font-size:13px;display:inline-block;min-width:44px;padding:2px 6px;border-radius:4px;background:var(--sunk);text-align:center}
+.pill{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;padding:2px 7px;border-radius:999px;white-space:nowrap}
+.pill.good{background:var(--good-soft);color:var(--good)}
+.pill.warn{background:var(--warn-soft);color:var(--warn)}
+.pill.bad{background:var(--bad-soft);color:var(--bad)}
+.pill.sample{background:var(--sample-soft);color:var(--sample)}
+.pill.info{background:var(--accent-soft);color:var(--accent)}
+.pill.top{background:var(--good);color:var(--surface);font-family:var(--f-mono);letter-spacing:.02em}
+tbody tr.top td:first-child{box-shadow:inset 3px 0 0 var(--good)}
+.down{color:var(--good)} .up{color:var(--bad)}
+.marks{display:flex;gap:4px;font-size:13px}
+.marks span{color:var(--muted)}
+.marks .on{color:var(--warn)}
+.marks .res.on{color:var(--accent)}
+td.tcell{padding:6px 0 6px 8px;width:84px}
+.thumb{display:block;width:76px;height:54px;border-radius:5px;background:var(--sunk);overflow:hidden;position:relative}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.thumb img.broken{display:none}
+.thumb .nim{position:absolute;inset:0;display:grid;place-items:center;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.thumb img:not(.broken)+.nim,.thumb .spr+.nim{display:none}
+.spr{width:100%;height:100%;background-repeat:no-repeat;background-size:1000% 1000%}
+
+/* empty state */
+.empty{padding:40px 24px;text-align:center;color:var(--muted);display:flex;flex-direction:column;gap:8px;align-items:center}
+.empty h3{color:var(--fg);font-size:18px}
+.empty code{font-family:var(--f-mono);background:var(--sunk);padding:2px 6px;border-radius:4px;color:var(--fg)}
+
+/* log */
+.log{margin-top:20px;display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.card h3{font-size:15px;text-transform:uppercase;letter-spacing:.05em}
+.card p{margin:0;color:var(--muted);font-size:13px}
+.card ul{margin:0;padding-left:18px;font-size:13px;display:flex;flex-direction:column;gap:3px}
+
+/* drawer */
+.scrim{position:fixed;inset:0;background:rgba(10,20,16,.35);z-index:20}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(640px,100%);background:var(--bg);z-index:21;box-shadow:var(--shadow);display:flex;flex-direction:column;
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);padding-right:env(safe-area-inset-right,0px);
+  transform:translateX(0);transition:transform .22s ease}
+@media (prefers-reduced-motion:reduce){.drawer{transition:none}}
+.dhead{background:var(--surface);border-bottom:1px solid var(--line);padding:14px 18px;display:flex;flex-direction:column;gap:8px}
+.dhead-row{display:flex;gap:10px;align-items:flex-start;justify-content:space-between}
+.dhead h2{font-size:21px;font-weight:700}
+.dhead .sub{color:var(--muted);font-size:13px}
+.dactions{display:flex;flex-wrap:wrap;gap:6px}
+.close{border:0;background:var(--sunk);border-radius:6px;width:32px;height:32px;cursor:pointer;font-size:18px;flex:none}
+.dbody{overflow-y:auto;padding:16px 18px 40px;display:flex;flex-direction:column;gap:14px}
+.sec{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.sec h3{font-size:13px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:700;display:flex;justify-content:space-between;gap:8px;align-items:center}
+.facts{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px 14px}
+.fact{display:flex;flex-direction:column;gap:1px;min-width:0}
+.fact span{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.fact b{font-weight:600;overflow-wrap:anywhere}
+.big{font-family:var(--f-mono);font-size:26px;font-weight:500;line-height:1.1}
+.row2{display:flex;flex-wrap:wrap;gap:14px 28px;align-items:flex-end}
+.note{font-size:12px;color:var(--muted);margin:0}
+.bars{display:flex;flex-direction:column;gap:8px}
+.bar{display:grid;grid-template-columns:150px minmax(0,1fr) 110px;gap:10px;align-items:center;font-size:13px}
+@media (max-width:480px){.bar{grid-template-columns:100px minmax(0,1fr) 90px}}
+.bar .track{height:10px;background:var(--sunk);border-radius:3px;position:relative;overflow:hidden}
+.bar .fill{position:absolute;inset:0 auto 0 0;background:var(--accent);border-radius:3px}
+.bar.me .fill{background:var(--fg)}
+.bar .v{text-align:right;font-family:var(--f-mono);font-size:12px}
+.bar .lab{color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.meter{position:relative;height:12px;border-radius:3px;background:linear-gradient(90deg,var(--good-soft) 0 75%,var(--warn-soft) 75% 80%,var(--bad-soft) 80% 100%)}
+.meter i{position:absolute;top:-4px;bottom:-4px;width:3px;background:var(--fg);border-radius:2px}
+.meter em{position:absolute;top:-4px;bottom:-4px;left:75%;width:0;border-left:1px dashed var(--muted)}
+.score{display:flex;gap:3px}
+.score i{width:18px;height:8px;border-radius:2px;background:var(--sunk)}
+.score i.on{background:var(--good)}
+.pc{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:480px){.pc{grid-template-columns:1fr}}
+.pc ul{margin:4px 0 0;padding-left:18px;display:flex;flex-direction:column;gap:3px;font-size:13px}
+.pc h4{margin:0;font-size:12px;text-transform:uppercase;letter-spacing:.05em}
+.pc .pro h4{color:var(--good)} .pc .con h4{color:var(--bad)}
+.prose{font-size:13.5px;white-space:pre-wrap;overflow-wrap:anywhere;margin:0}
+.kv{display:grid;grid-template-columns:minmax(110px,40%) minmax(0,1fr);gap:4px 12px;font-size:13px;margin:0}
+.kv dt{color:var(--muted)} .kv dd{margin:0;overflow-wrap:anywhere}
+textarea{width:100%;min-height:80px;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px;resize:vertical}
+.gal{display:flex;flex-direction:column;gap:8px;margin:-2px 0 0}
+.gal-main{position:relative;aspect-ratio:4/3;max-width:100%;background:var(--sunk);border-radius:8px;overflow:hidden}
+.gal-main img{width:100%;height:100%;object-fit:contain;display:block}
+.gal-main img.broken{display:none}
+.gal-main .cnt{position:absolute;right:8px;bottom:8px;background:var(--fg);color:var(--bg);font-family:var(--f-mono);font-size:11px;padding:2px 7px;border-radius:4px}
+.gal-nav{position:absolute;top:50%;transform:translateY(-50%);border:0;width:34px;height:34px;border-radius:50%;background:var(--surface);color:var(--fg);box-shadow:var(--shadow);cursor:pointer;font-size:18px;line-height:1}
+.gal-nav.prev{left:8px} .gal-nav.next{right:8px}
+.strip{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px}
+.strip button{flex:none;width:64px;height:46px;padding:0;border:2px solid transparent;border-radius:5px;overflow:hidden;background:var(--sunk);cursor:pointer}
+.strip button[aria-current="true"]{border-color:var(--accent)}
+.strip img{width:100%;height:100%;object-fit:cover;display:block}
+.chart{width:100%;height:auto;display:block}
+.chart text{fill:var(--muted);font-family:var(--f-mono);font-size:11px}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:8px 14px;border-radius:6px;font-size:13px;z-index:30}
+a{color:var(--accent)}
+</style>
+
+<header class="top">
+  <div class="top-in wrap">
+    <div class="brand">
+      <h1>Otthon Start lakásfigyelő</h1>
+      <small>Budapest · 30–50 M Ft · max. 1,5 M Ft/m² · befektetési (kiadási) szemmel</small>
+    </div>
+    <div class="stats" id="stats">
+      <div class="stat"><b id="sAll">–</b><span>Aktív hirdetés</span></div>
+      <div class="stat"><b id="sOs">–</b><span>Otthon Start-os</span></div>
+      <div class="stat"><b id="sGood">–</b><span>Jó ár-érték</span></div>
+      <div class="stat"><b id="sDrop">–</b><span>Árcsökkent</span></div>
+      <div class="stat"><b id="sRun">–</b><span>Utolsó frissítés</span></div>
+      <div class="stat deadline"><b id="sDead">–</b><span>Napod maradt</span></div>
+    </div>
+  </div>
+</header>
+
+<div class="wrap"><div class="banner" id="sampleBanner" hidden>
+  <span class="pill sample">MINTA</span>
+  <div><b>Mintaadatokat látsz.</b> Ezek kitalált hirdetések, hogy kipróbálhasd a szűrést, a részletes nézetet és a jelöléseket. Az első valódi adatgyűjtés az ingatlan.com-ról törli őket.</div>
+</div></div>
+
+<div class="main wrap">
+  <aside class="filters" id="filters">
+    <div class="fhead"><h2>Szűrés</h2><button class="btn ftoggle" id="fToggle" aria-expanded="false">Megnyitás</button></div>
+    <div class="fbody">
+      <div class="field"><label for="q">Keresés</label><input type="search" id="q" placeholder="utca, kerület, kulcsszó…"></div>
+      <div class="field"><span class="lbl">Kerület</span><div class="dists" id="dists"></div>
+        <button class="linkbtn" id="distClear" type="button">Összes kerület</button></div>
+      <div class="field"><span class="lbl">Ár (M Ft)</span><div class="pair">
+        <input type="number" id="pMin" min="0" step="1" placeholder="30" aria-label="Minimum ár"><input type="number" id="pMax" min="0" step="1" placeholder="50" aria-label="Maximum ár"></div></div>
+      <div class="field"><span class="lbl">Alapterület (m²)</span><div class="pair">
+        <input type="number" id="aMin" min="0" step="1" placeholder="min" aria-label="Minimum alapterület"><input type="number" id="aMax" min="0" step="1" placeholder="max" aria-label="Maximum alapterület"></div></div>
+      <div class="field"><label for="yMin">Min. bruttó hozam (%)</label><input type="number" id="yMin" min="0" step="0.5" placeholder="pl. 6"></div>
+      <div class="field"><span class="lbl">Megjelenítés</span>
+        <label class="chk"><input type="checkbox" id="fTop" checked> TOP 15 a lista elején</label>
+        <label class="chk"><input type="checkbox" id="fTopOnly"> Csak a TOP 15</label>
+        <label class="chk"><input type="checkbox" id="fExcl"> Kizártak is (nem Otthon Start-os)</label>
+        <label class="chk"><input type="checkbox" id="fGood"> Csak jó ár-érték</label>
+        <label class="chk"><input type="checkbox" id="fFav"> Csak kedvencek</label>
+        <label class="chk"><input type="checkbox" id="fDrop"> Csak árcsökkentek</label>
+        <label class="chk"><input type="checkbox" id="fGone"> Lekerült hirdetések is</label>
+      </div>
+      <button class="btn" id="reset" type="button">Szűrők törlése</button>
+    </div>
+  </aside>
+
+  <section style="min-width:0">
+    <div class="listhead">
+      <div><h2>Hirdetések</h2><span class="count" id="count"></span></div>
+      <div class="field" style="flex-direction:row;align-items:center;gap:8px">
+        <label for="sort" style="margin:0">Rendezés</label>
+        <select id="sort">
+          <option value="value">Ár-érték (legjobb elöl)</option>
+          <option value="yield">Bruttó hozam</option>
+          <option value="m2">Ft/m² (olcsó elöl)</option>
+          <option value="price">Ár (olcsó elöl)</option>
+          <option value="drop">Legnagyobb árcsökkenés</option>
+          <option value="new">Legújabb</option>
+        </select>
+      </div>
+    </div>
+    <div class="tablewrap" id="tablewrap">
+      <table>
+        <thead><tr>
+          <th data-k="img" aria-label="Kép"></th><th data-k="dist">Ker.</th><th data-k="addr">Cím · leírás</th>
+          <th class="r" data-k="price">Ár</th><th class="r" data-k="area">m²</th><th class="r" data-k="m2">Ft/m²</th>
+          <th data-k="os">Otthon Start</th><th class="r" data-k="yield">Hozam</th><th data-k="value">Ár-érték</th>
+          <th class="r" data-k="drop">Ármozgás</th><th data-k="marks">Jelölés</th>
+        </tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+      <div class="empty" id="empty" hidden></div>
+    </div>
+
+    <div class="log">
+      <div class="card"><h3>Hogyan frissül</h3>
+        <p>Az adatokat Claude gyűjti a Chrome-ban az ingatlan.com-ról, és ide írja. Frissítéskor elég ennyit írnod: <b>„frissítsd a lakáshirdetéseket”</b>.</p>
+        <p>Minden frissítés naplózza az árat, ezért a részletes nézetben látod, hogyan mozgott egy hirdetés ára. Az eltűnt hirdetések „lekerült” jelzést kapnak.</p></div>
+      <div class="card"><h3>Mélyebb kutatás</h3>
+        <p>Nyiss meg egy lakást, és nyomd meg a <b>Kutasd ki</b> gombot. Utána írd Claude-nak: <b>„kutasd ki a kijelölt lakásokat”</b>.</p>
+        <p>Claude ilyenkor utánanéz a háznak, a környéknek, a közlekedésnek és a hasonló hirdetéseknek, letölti a hirdetés összes képét, és az eredményt ide írja. Frissítéskor csak az indexkép kerül be.</p></div>
+      <div class="card"><h3>Frissítési napló</h3><ul id="runs"><li style="color:var(--muted)">Még nem volt adatgyűjtés.</li></ul></div>
+    </div>
+  </section>
+</div>
+
+<div class="scrim" id="scrim" hidden></div>
+<aside class="drawer" id="drawer" hidden aria-modal="true" role="dialog" aria-labelledby="dTitle"></aside>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(() => {
+const OS_MAX = 1500000, OS_BORDER = 1600000;
+const ROMAN = ["I","II","III","IV","V","VI","VII","VIII","IX","X","XI","XII","XIII","XIV","XV","XVI","XVII","XVIII","XIX","XX","XXI","XXII","XXIII"];
+const S = { listings: [], marks: {}, districts: null, config: {}, runs: [], selected: null, sortKey: "value", sortDir: 1 };
+let db = null;
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const nf = new Intl.NumberFormat("hu-HU");
+const mFt = p => p == null ? "–" : (p / 1e6).toLocaleString("hu-HU", {maximumFractionDigits: 2}) + " M Ft";
+const kFt = p => p == null ? "–" : nf.format(Math.round(p / 1000) * 1000) + " Ft";
+const m2k = p => p == null ? "–" : nf.format(Math.round(p / 1000)) + " e Ft";
+const pct = v => v == null || !isFinite(v) ? "–" : (v * 100).toLocaleString("hu-HU", {maximumFractionDigits: 1}) + "%";
+const today = () => new Date().toISOString().slice(0, 10);
+const huDate = d => d ? new Date(d + "T12:00:00").toLocaleDateString("hu-HU", {month: "short", day: "numeric"}) : "–";
+
+/* ---------- derived values ---------- */
+function ppm(l) { return l.price && l.area ? l.price / l.area : null; }
+function osStatus(l) {
+  const v = ppm(l);
+  if (v == null) return {k: "warn", t: "Nincs adat"};
+  if (l.price > 100000000) return {k: "bad", t: "100 M felett"};
+  if (l.osExcluded) return {k: "bad", t: "Nem felel meg"};
+  if (v <= OS_MAX) return {k: "good", t: "Megfelel"};
+  if (v <= OS_BORDER) return {k: "warn", t: "Határeset"};
+  return {k: "bad", t: "Nem felel meg"};
+}
+// only listings that fit Otthon Start (≤1,5 M Ft/m², not flagged by research) are shown unless "Kizártak is" is on
+function osEligible(l) { return osStatus(l).k === "good"; }
+function hist(l) { return (l.priceHistory || []).slice().sort((a, b) => a.d < b.d ? -1 : 1); }
+function priceChange(l) {
+  const h = hist(l); if (h.length < 2) return 0;
+  return (h[h.length - 1].p - h[0].p) / h[0].p;
+}
+function districtRef(l) { return S.districts?.d?.[l.district] || null; }
+function districtMedian(l) {
+  const xs = S.listings.filter(x => x.district === l.district && x.active !== false && ppm(x)).map(ppm).sort((a, b) => a - b);
+  if (!xs.length) return {v: null, n: 0};
+  const m = xs.length % 2 ? xs[(xs.length - 1) / 2] : (xs[xs.length / 2 - 1] + xs[xs.length / 2]) / 2;
+  return {v: m, n: xs.length};
+}
+function rentEstimate(l) {
+  if (l.rent && l.rent.low && l.rent.high) return {low: l.rent.low, high: l.rent.high, mid: (l.rent.low + l.rent.high) / 2, src: "Claude becslése", note: l.rent.note || ""};
+  const ref = districtRef(l); if (!ref || !l.area) return null;
+  let f = 1; const why = [];
+  if (l.area < 30) { f *= 1.12; why.push("kis lakás +12%"); }
+  else if (l.area < 40) { f *= 1.05; why.push("40 m² alatt +5%"); }
+  else if (l.area > 60) { f *= 0.95; why.push("60 m² felett −5%"); }
+  const c = (l.condition || "").toLowerCase();
+  if (/új|felújított|újszerű/.test(c)) { f *= 1.08; why.push("felújított/új +8%"); }
+  else if (/felújítandó|közepes/.test(c)) { f *= 0.85; why.push("felújítandó −15%"); }
+  if (/panel/.test((l.buildingType || "").toLowerCase())) { f *= 0.95; why.push("panel −5%"); }
+  if (l.elevator === false && Number(l.floor) >= 3) { f *= 0.97; why.push("lift nélkül, 3.+ emelet −3%"); }
+  const mid = ref.rent * l.area * f, round = v => Math.round(v / 5000) * 5000;
+  return {low: round(mid * 0.92), high: round(mid * 1.08), mid: round(mid), src: "Kerületi átlagból számolva", note: why.join(", ")};
+}
+function grossYield(l) { const r = rentEstimate(l); return r && l.price ? r.mid * 12 / l.price : null; }
+function loanCalc(l) {
+  const loan = Math.min(l.price * 0.9, 50000000), i = 0.03 / 12, n = 300;
+  return {loan, own: l.price - loan, pay: loan * i / (1 - Math.pow(1 + i, -n))};
+}
+function valueScore(l) { return l.value?.score ?? 0; }
+function isGood(l) { return !!l.value?.good; }
+function topRank(l) { return l.value?.top15?.rank ?? null; }
+function mark(id) { return S.marks[id] || {}; }
+// images: l.thumb = index image (every refresh); l.images = full gallery (only after "Kutasd ki"). Entries are strings or {url}.
+const imgUrl = x => typeof x === "string" ? x : x?.url || "";
+function gallery(l) { return (l.images || []).map(imgUrl).filter(Boolean); }
+function thumbOf(l) { return imgUrl(l.thumb) || gallery(l)[0] || ""; }
+// sprite sheets (10x10 tiles of 240x180) as fallback index images; SHEETS = {sheetName: [listing ids in tile order]}
+const SHEETS = {"s00":["22316789","29794451","32890114","33482789","33482883","33509405","33769157","33821987","33902608","34089211","34098664","34108394","34238407","34328673","34346007","34500511","34552769","34644175","34660303","34662389","34662402","34673426","34674219","34674338","34690334","34691358","34703916","34706926","34725015","34726247","34727448","34727640","34732042","34749493","34754483","34769758","34778399","34809507","34827380","34834252","34834448","34834465","34850583","34851489","34858697","34872104","34883093","34890873","34890892","34903666","34914541","34917368","34918630","34918656","34920644","34946499","34953678","34954505","34959150","34968080","34970605","34976322","34976564","34982642","34984326","34986292","34999738","34999839","35000540","35003906","35009333","35009617","35009760","35010367","35010742","35011615","35015021","35017385","35017391","35024264","35024508","35033996","35067486","35070297","35071212","35071267","35073389","35084984","35088839","35091185","35092412","35093752","35103112","35103932","35104104","35104652","35107853","35117679","35121539","35121865"],"s01":["35136184","35139056","35141759","35145011","35145064","35147297","35150452","35155160","35157729","35158304","35161004","35164971","35164986","35167397","35168315","35170975","35172403","35174338","35174975","35175117","35175904","35177561","35177804","35180107","35183286","35187108","35189906","35190456","35194948","35195669","35198420","35201061","35202995","35207032","35218086","35218099","35218789","35219338","35219587","35219591","35222361","35222373","35222393","35222431","35222796","35226513","35226517","35226673","35226904","35230830","35231168","35233389","35234031","35235304","35236250","35239295","35241500","35242005","35244019","35244176","35244761","35244794","35245607","35247498","35247504","35248001","35248361","35250832","35251451","35252177","35253008","35253017","35253049","35253053","35253056","35253061","35254201","35256511","35257082","35257087","35257724","35259021","35259035","35259041","35260676","35261668","35261994","35262146","35262704","35263176","35265660","35265789","35267298","35267767","35268157","35268170","35268966","35269255","35269612","35270333"],"s02":["35270632","35270937","35273614","35275235","35275561","35276564","35276956","35281552","35282305","35282507","35282528","35282892","35283994","35284117","35285030","35285737","35285971","35286996","35287196","35291701","35291967","35292464","35292810","35293558","35294624","35295235","35297355","35298032","35298385","35299425","35299551","35299617","35300684","35300785","35301652","35301722","35302237","35303434","35306165","35308920","35309633","35309914","35310047","35312208","35312862","35313777","35314796","35315594","35316044","35316096","35316549","35317798","35318693","35318846","35319039","35319346","35320317","35320560","35322714","35325019","35325108","35325577","35325676","35326814","35327452","35327726","35328006","35328643","35330170","35331849","35333428","35334244","35334293","35335097","35335117","35336810","35336821","35337522","35337625","35337637","35337670","35337824","35339464","35340371","35341398","35341522","35341534","35341837","35342265","35342338","35343012","35344359","35346077","35347278","35347458","35352357","35353188","35353269","35355637","35356619"],"s03":["35358398","35358594","35358978","35359016","35360585","35361658","35362161","35362934","35364749","35366080","35366675","35366939","35367007","35367128","35367193","35368237","35368887","35371213","35371673","35371975","35372871","35374278","35375075","35375532","35375894","35376268","35377714","35378257","35378698","35381370","35381973","35383176","35383573","35383779","35384097","35385685","35385710","35386447","35386811","35387069","35387373","35388055","35388355","35391307","35391461","35391469","35391676","35392087","35392220","35393184","35393999","35394550","35394656","35395051","35395086","35395665","35395916","35396384","35396670","35396886","35397541","35397598","35397855","35397976","35400055","35401141","35401947","35402378","35403066","35403071","35405407","35406435","35406931","35406975","35408189","35408876","35409464","35410016","35410086","35411376","35411760","35412476","35413430","35413911","35414714","35415764","35416375","35416507","35417339","35417410","35417611","35417714","35417734","35419538","35419825","35420138","35420591","35420659","35420817","35421258"],"s04":["35421406","35421782","35422138","35422440","35422921","35423111","35423738","35423971","35424184","35424205","35424492","35424870","35425744","35426083","35426292","35426396","35426613","35426893","35427499","35427551","35428019","35428041","35428856","35429113","35429167","35429608","35429764","35430302","35430619","35431230","35432077","35432198","35432200","35432202","35432203","35432205","35432207","35432212","35432213","35432217","35432385","35432868","35432937","35432955","35433104","35433580","35434753","35434777","35436012","35436298","35436450","35436779","35438822","35439341","35440978","35441549","35441962","35442232","35442717","35442737","35442840","35444342","35444958","35445402","35445741","35446807","35447360","35448151","35448839","35448921","35450055","35450806","35451104","35451435","35452406","35453529","35453584","35453649","35454532","35455512","35456564","35457130","35457434","35457908","35458106","35458806","35458984","35459056","35459269","35459353","35459638","35460616","35460704","35461450","35461797","35462496","35462653","35463740","35463895","35465046"],"s05":["35465162","35465694","35465705","35465935","35466007","35466848","35467217","35467569","35468207","35468475","35468530","35468539","35469091","35469398","35469601","35469656","35469770","35469898","35470357","35470420","35470697","35471333","35471480","35471814","35471922","35471955","35472295","35472523","35473221","35473569","35473649","35473673","35473677","35473743","35474250","35474287","35474374","35474426","35475261","35476084","35476402","35476496","35476559","35476751","35476998","35477092","35477114","35477642","35477673","35477846","35477888","35478198","35478339","35478377","35478458","35478498","35479011","35479331","35479731","35480301","35480331","35480426","35480515","35481046","35481155","35481574","35481792","35482071","35482158","35482592","35482621","35482659","35482749","35482838","35482861","35483498","35484332","35484380","35484531","35484860","35485374","35485912","35486687","35486739","35486921","35487262","35487313","35487757","35487869","35488429","35489060","35489985","35489996","35489997","35490333","35490993","35490994","35491023","35491708","35493119"],"s06":["35493467","35493996","35494183","35494187","35494273","35494346","35494544","35494935","35495180","35495288","35495420","35495453","35495902","35496068","35496595","35496649","35497048","35497350","35497866","35498056","35499051","35499130","35499350","35499585","35499789","35500232","35500358","35500898","35500984","35502571","35502625","35502755","35503295","35503449","35503458","35504139","35504248","35505108","35505162","35505351","35506028","35506413","35506499","35506899","35506958","35507466","35508221","35508678","35509262","35509682","35511130","35511162","35511241","35511329","35511933","35512015","35512383","35512428","35512615","35512666","35513225","35513329","35513477","35513741","35514079","35514640","35514832","35515013","35515271","35515278","35515401","35515692","35515724","35515858","35515946","35516079","35516399","35516671","35516821","35516980","35517467","35517966","35518260","35518916","35519013","35519173","35519405","35519532","35519701","35519832","35520387","35520397","35520458","35520507","35520676","35520849","35520904","35520975","35521128","35521269"],"s07":["35521482","35521625","35522006","35522248","35522487","35522571","35522744","35522815","35522991","35523119","35523188","35523631","35523746","35523816","35523952","35526101","35526201","35526269","35526534","35526902","35527040","35527277","35527733","35528442","35528505","35529180","35529257","35529876","35530391","35530421","35530565","35530656","35530740","35530753","35530838","35531024","35531138","35532185","35532244","35532344","35532603","35532839","35533087","35533186","35533425","35533577","35533589","35533616","35534707","35534747","35535237","35535741","35536604","35536655","35537791","35538204","35538483","35538620","35539023","35539152","35539258","35539296","35539347","35539398","35539492","35539689","35539820","35539842","35540047","35540241","35540878","35540888","35540900","35540940","35541058","35541225","35541351","35541614","35542171","35542547","35542676","35542747","35543086","35543387","35543717","35543897","35544316","35544744","35544971","35545035","35545231","35545255","35545333","35545350","35545407","35546177","35546350","35546378","35546383","35547002"],"s08":["35547005","35547060","35547113","35547220","35547230","35547684","35547826","35548079","35548280","35548503","35548558","35549182","35549191","35549242","35549312","35549347","35549392","35549647","35550292","35550331","35550494","35550807","35550867","35551161","35551347","35551476","35552239","35552250","35552304","35552351","35552404","35552461","35552759","35552794","35552833","35552914","35553164","35553584","35553903","35554130","35554676","35555243","35555508","35555868","35555955","35556040","35556301","35556332","35556367","35556597","35557120","35557189","35557251","35557300","35557461","35558069","35558095","35558153","35558286","35558565","35558661","35559103","35559495","35560106","35560241","35560930","35561192","35561426","35561489","35561529","35561531","35562159","35562278","35562301","35562434","35562435","35562467","35562477","35562713","35563198","35563307","35563746","35564000","35564130","35564196","35564361","35564385","35564446","35564449","35564462","35564478","35564776","35565161","35565293","35565391","35565528","35565542","35565580","35565956","35566016"],"s09":["35566561","35566893","35566980","35567599","35568022","35568298","35568367","35568764","35568888","35568904","35569184","35569583","35569650","35569656","35569841","35569916","35569944","35570379","35570434","35570806","35570915","35570975","35571058","35571255","35571350","35571383","35571629","35571729","35571833","35572210","35572230","35572470","35572475","35572605","35572828","35573099","35573447","35573460","35573734","35573832","35574104","35574307","35574503","35574529","35574956","35574995","35575032","35575084","35575122","35575124","35575156","35575170","35575205","35575223","35575578","35575644","35575920","35576343","35576356","35576368","35576832","35576960","35577023","35577259","35577417","35577626","35578039","35578279","35578465","35578556","35578604","35578946","35579058","35579284","35579333","35579351","35579480","35579541","35579776","35580150","35580341","35580346","35580603","35580783","35581306","35581449","35581886","35582071","35582405","35582457","35582779","35582983","35583035","35583399","35583486","35583907","35583919","35583934","35583942","35584110"],"s10":["35584182","35584184","35584214","35584356","35584603","35584787","35584802","35584868","35584899","35584915","35585124","35585151","35585476","35585630","35585769","35585829","35585953","35586474","35586475","35586644","35587128","35587135","35587289","35587391","35587495","35587523","35587526","35587874","35588000","35588050","35588333","35588347","35588473","35588635","35588711","35589213","35589658","35590342","35590401","35590762","35590889","35590934","35591015","35591108","35591139","35591441","35591550","35592207","35592350","35592615","35592762","35593610","35593724","35593849","35594056","35594322","35594519","35594520","35594632","35595106","35595175","35595201","35595280","35595716","35595793","35595832","35595980","35596159","35596164","35596196","35596322","35596786","35597167","35597496","35597648","35597650","35597660","35597749","35598007","35598061","35598235","35598313","35598543","35598550","35598657","35598771","35598823","35598862","35598868","35598950","35599073","35599459","35599488","35599614","35599646","35599731","35599812","35599893","35599899","35600189"],"s11":["35600292","35600333","35600351","35600377","35600488","35600548","35600603","35600720","35601005","35601093","35601215","35601267","35601428","35601496","35601596","35601780","35601837","35601838","35601887","35601903","35602070","35602105","35602279","35602366","35602737","35602986","35603083","35603162","35603192","35603266","35603304","35603696","35603867","35603930","35603956","35603982","35604029","35604100","35604156","35604174","35604442","35604444","35604522","35604637","35604930","35604947","35604949","35605242","35605273","35605337","35605368","35605915","35606086","35606093","35606271","35606362","35606612","35606734","35606789","35607049","35607058","35607211","35607338","35607346","35607429","35607537","35607611","35607620","35607789","35607816","35607825","35607833","35607837","35607841","35607855","35608361","35608401","35608662","35608860","35609098","35609152","35609224","35609549","35609607","35609650","35609742","35609751","35609837","35610004","35610091","35610095","35610211","35610391","35610429","35610450","35610516","35610674","35610901","35611043","35611462"],"s12":["35612164","35612234","35612417","35612455","35612493","35612589","35612699","35612851","35612874","35612922","35612960","35612980","35613124","35613276","35613316","35613446","35613503","35613537","35613746","35613856","35613928","35614069","35614083","35614280","35614294","35614316","35614360","35614423","35614444","35614613","35614735","35614737","35614753","35614879","35614953","35615005","35615028","35615053","35615217","35615314","35615333","35615343","35615369","35615437","35615982","35616240","35616261","35616478","35616583","35616665","35616693","35616717","35616735","35616814","35616852","35616884","35617258","35617471","35617502","35617544","35617662","35617735","35617764","35617820","35618033","35618313","35618379","35618386","35618458","35618524","35618548","35618910","35618947","35619321","35619361","35619367","35619412","35619448","35619485","35619582","35619597","35619621","35619641","35620192","35620339","35620413","35620497","35620584","35620676","35620693","35621041","35621101","35621142","35621149","35621178","35621360","35621523","35621601","35621923","35622061"],"s13":["35622153","35622189","35622198","35622204","35622206","35622371","35622410","35622615","35622782","35622885","35622989","35623020","35623071","35623088","35623121","35623277","35623288","35623550","35623616","35623668","35623670","35623671","35623758","35623858","35623939","35623948","35624058","35624153","35624220","35624252","35624411","35624813","35624921","35624964","35624965","35624989","35625035","35625248","35625265","35625394","35625444","35625502","35625550","35625614","35625619","35626035","35626106","35626199","35626319","35626353","35626810","35626876","35627177","35627767","35627894","35627983","35628010","35628203","35628226","35628323","35628370","35628383","35628471","35628574","35628757","35628794","35628892","35628930","35628998","35629106","35629112","35629153","35629353","35629515","35629523","35629760","35630040","35630050","35630065","35630215","35630584","35630611","35630774","35630922","35630929","35630932","35630986","35631211","35631247","35631408","35631498","35631659","35631787","35631899","35631948","35631953","35631986","35632043","35632074","35632101"],"s14":["35632202","35632252","35632460","35632576","35632592","35632620","35632739","35632740","35632759","35632784","35633001","35633003","35633087","35633158","35633217","35633478","35633787","35633812","35633897","35634314","35634407","35634459","35634497","35634507","35634528","35634555","35634635","35634900","35635152","35635168","35635452","35635566","35635655","35635774","35635777","35635816","35635861","35635903","35636166","35636177","35636193","35636307","35636338","35636367","35636528","35636655","35636792","35636805","35636893","35636999","35637067","35637285","35637440","35637586","35637598","35637603","35637671","35637735","35637887","35638037","35638329","35638415","35638424","35638822","35638903","35639529","35639713","35639998","35640099","35640120","35640137","35640184","35640320","35640462","35640832","35640902","35640984","35640998","35641112","35641115","35641240","35641257","35641358","35641402","35641438","35641622","35641840","35641850","35642061","35642215","35642301","35642489","35642491","35642556","35642561","35642569","35642773","35642785","35642907","35643051"],"s15":["35643299","35643335","35643344","35643350","35643398"]};
+const SPR = {}; for (const [n, ids] of Object.entries(SHEETS)) ids.forEach((id, i) => SPR[id] = [n, i]);
+function sprHtml(id) { const s = SPR[id]; if (!s) return ""; const c = s[1] % 10, r = Math.floor(s[1] / 10); return `<span class="spr" style="background-image:url(sprites/${s[0]}.jpg);background-position:${(c / 9 * 100).toFixed(3)}% ${(r / 9 * 100).toFixed(3)}%"></span>`; }
+
+/* ---------- filters ---------- */
+const F = {q: "", dists: new Set(), pMin: null, pMax: null, aMin: null, aMax: null, yMin: null, top: true, topOnly: false, excl: false, good: false, fav: false, drop: false, gone: false};
+function loadPrefs() {
+  try { const p = JSON.parse(localStorage.getItem("osf-prefs") || "{}");
+    Object.assign(F, p, {dists: new Set(p.dists || [])}); if (p.sortKey) { S.sortKey = p.sortKey; S.sortDir = p.sortDir || 1; } } catch (e) {}
+}
+function savePrefs() {
+  try { localStorage.setItem("osf-prefs", JSON.stringify({...F, dists: [...F.dists], sortKey: S.sortKey, sortDir: S.sortDir})); } catch (e) {}
+}
+function bindFilters() {
+  const num = v => v === "" ? null : Number(v);
+  const map = {q: ["q", v => v.trim().toLowerCase()], pMin: ["pMin", num], pMax: ["pMax", num], aMin: ["aMin", num], aMax: ["aMax", num], yMin: ["yMin", num]};
+  for (const [k, [id, fn]] of Object.entries(map)) {
+    const el = $(id); el.value = F[k] ?? "";
+    el.addEventListener("input", () => { F[k] = fn(el.value); savePrefs(); render(); });
+  }
+  const chks = {fTop: "top", fTopOnly: "topOnly", fExcl: "excl", fGood: "good", fFav: "fav", fDrop: "drop", fGone: "gone"};
+  for (const [id, k] of Object.entries(chks)) {
+    const el = $(id); el.checked = !!F[k];
+    el.addEventListener("change", () => { F[k] = el.checked; savePrefs(); render(); });
+  }
+  $("sort").value = S.sortKey;
+  $("sort").addEventListener("change", e => { S.sortKey = e.target.value; S.sortDir = 1; savePrefs(); render(); });
+  $("distClear").onclick = () => { F.dists.clear(); savePrefs(); render(); };
+  $("reset").onclick = () => {
+    Object.assign(F, {q: "", pMin: null, pMax: null, aMin: null, aMax: null, yMin: null, top: true, topOnly: false, excl: false, good: false, fav: false, drop: false, gone: false}); F.dists.clear();
+    for (const id of ["q","pMin","pMax","aMin","aMax","yMin"]) $(id).value = "";
+    for (const [id, k] of Object.entries(chks)) $(id).checked = F[k];
+    savePrefs(); render();
+  };
+  $("fToggle").onclick = () => { const o = $("filters").classList.toggle("open"); $("fToggle").setAttribute("aria-expanded", o); $("fToggle").textContent = o ? "Bezárás" : "Megnyitás"; };
+  document.querySelectorAll("th[data-k]").forEach(th => th.addEventListener("click", () => {
+    const k = th.dataset.k; const sortable = {price: "price", area: "area", m2: "m2", yield: "yield", value: "value", drop: "drop", dist: "dist"};
+    if (!sortable[k]) return;
+    if (S.sortKey === k) S.sortDir *= -1; else { S.sortKey = k; S.sortDir = 1; }
+    if ([...$("sort").options].some(o => o.value === k)) $("sort").value = k;
+    savePrefs(); render();
+  }));
+}
+function passes(l) {
+  if (!F.gone && l.active === false) return false;
+  if (F.topOnly && topRank(l) == null) return false;
+  if (!F.excl && !osEligible(l)) return false;
+  if (F.dists.size && !F.dists.has(l.district)) return false;
+  if (F.pMin != null && l.price < F.pMin * 1e6) return false;
+  if (F.pMax != null && l.price > F.pMax * 1e6) return false;
+  if (F.aMin != null && l.area < F.aMin) return false;
+  if (F.aMax != null && l.area > F.aMax) return false;
+  if (F.yMin != null) { const y = grossYield(l); if (y == null || y * 100 < F.yMin) return false; }
+  if (F.good && !isGood(l)) return false;
+  if (F.fav && !mark(l.id).fav) return false;
+  if (F.drop && !(priceChange(l) < 0)) return false;
+  if (F.q) {
+    const hay = [l.title, l.address, l.district + ". kerület", l.description, l.condition, l.buildingType, l.value?.summary].join(" ").toLowerCase();
+    if (!F.q.split(/\s+/).every(w => hay.includes(w))) return false;
+  }
+  return true;
+}
+function sorter(a, b) {
+  const k = S.sortKey, d = S.sortDir;
+  const val = {
+    value: l => -(valueScore(l) + (isGood(l) ? 0.5 : 0)), yield: l => -(grossYield(l) ?? -1), m2: l => ppm(l) ?? 9e9,
+    price: l => l.price ?? 9e12, area: l => -(l.area ?? 0), drop: l => priceChange(l), new: l => -(Date.parse(l.firstSeen || 0) || 0),
+    dist: l => ROMAN.indexOf(l.district)
+  }[k] || (() => 0);
+  if (F.top) { const ta = topRank(a) ?? 99, tb = topRank(b) ?? 99; if (ta !== tb) return ta - tb; }
+  return (val(a) - val(b)) * d || (ppm(a) ?? 0) - (ppm(b) ?? 0);
+}
+
+/* ---------- render ---------- */
+function render() {
+  const all = S.listings, active = all.filter(l => l.active !== false);
+  $("sAll").textContent = active.length;
+  $("sOs").textContent = active.filter(l => osStatus(l).k === "good").length;
+  $("sGood").textContent = active.filter(l => isGood(l) && osStatus(l).k === "good").length;
+  $("sDrop").textContent = active.filter(l => priceChange(l) < 0).length;
+  const last = S.runs[S.runs.length - 1]; $("sRun").textContent = last ? huDate(last.date) : "még nincs";
+  const dl = S.config.deadline; $("sDead").textContent = dl ? Math.max(0, Math.ceil((Date.parse(dl + "T23:59:59") - Date.now()) / 864e5)) : "–";
+  $("sampleBanner").hidden = !all.some(l => l.sample);
+
+  // district chips: districts that appear in data, else all
+  const present = new Set(all.map(l => l.district));
+  const ds = ROMAN.filter(r => present.size ? present.has(r) : true);
+  $("dists").innerHTML = ds.map(r => `<button type="button" class="dchip" data-d="${r}" aria-pressed="${F.dists.has(r)}">${r}</button>`).join("");
+  $("dists").querySelectorAll(".dchip").forEach(b => b.onclick = () => { const d = b.dataset.d; F.dists.has(d) ? F.dists.delete(d) : F.dists.add(d); savePrefs(); render(); });
+
+  document.querySelectorAll("th[data-k]").forEach(th => th.setAttribute("aria-sort", th.dataset.k === S.sortKey ? (S.sortDir > 0 ? "ascending" : "descending") : "none"));
+
+  const rows = all.filter(passes).sort(sorter);
+  const excluded = all.filter(l => l.active !== false && !osEligible(l)).length;
+  $("count").textContent = all.length ? ` · ${rows.length} / ${all.length} hirdetés${excluded && !F.excl ? ` · ${excluded} nem Otthon Start-os elrejtve` : ""}` : "";
+  const empty = $("empty");
+  if (!all.length) {
+    empty.hidden = false; $("tbody").innerHTML = "";
+    empty.innerHTML = db === undefined ? `<h3>Adatok betöltése…</h3>` :
+      `<h3>Még nincs begyűjtött hirdetés</h3><p>Írd Claude-nak: <code>gyűjtsd be a lakáshirdetéseket</code>. A Chrome-ban végigmegy az ingatlan.com budapesti 30–50 M Ft-os lakásain, és ide tölti őket.</p>`;
+  } else if (!rows.length) {
+    empty.hidden = false; $("tbody").innerHTML = "";
+    empty.innerHTML = `<h3>Egy hirdetés sem felel meg a szűrőknek</h3><p>Lazíts a szűrésen, vagy kapcsold be a határeseteket.</p>`;
+  } else {
+    empty.hidden = true;
+    $("tbody").innerHTML = rows.map(l => {
+      const os = osStatus(l), ch = priceChange(l), y = grossYield(l), m = mark(l.id), tr = topRank(l);
+      return `<tr data-id="${esc(l.id)}" class="${[S.selected === l.id && "sel", tr != null && "top"].filter(Boolean).join(" ")}" tabindex="0">
+        <td class="tcell"><span class="thumb">${thumbOf(l) ? `<img src="${esc(thumbOf(l))}" alt="" loading="lazy">` : sprHtml(l.id)}<span class="nim">nincs kép</span></span></td>
+        <td><span class="dist">${esc(l.district)}.</span></td>
+        <td><div class="addr"><b>${tr != null ? `<span class="pill top">TOP ${tr}</span> ` : ""}${l.sample ? '<span class="pill sample">MINTA</span> ' : ""}${esc(l.address || l.title)}</b>
+          <small>${l.value?.top15?.listedEst ? esc("fent kb.: " + l.value.top15.listedEst) + " · " : ""}${esc([l.rooms && l.rooms + " szoba", l.condition, l.buildingType, l.floor != null && l.floor !== "" && l.floor + ". em."].filter(Boolean).join(" · "))}${l.active === false ? " · <b style='color:var(--bad)'>lekerült</b>" : ""}</small></div></td>
+        <td class="r num">${mFt(l.price)}</td><td class="r num">${l.area ?? "–"}</td><td class="r num">${m2k(ppm(l))}</td>
+        <td><span class="pill ${os.k}">${os.t}</span></td>
+        <td class="r num">${pct(y)}</td>
+        <td>${isGood(l) ? '<span class="pill good">Jó ár-érték</span>' : l.value?.score ? `<span class="pill info">${l.value.score}/5</span>` : '<span class="pill warn">Elemzésre vár</span>'}</td>
+        <td class="r num ${ch < 0 ? "down" : ch > 0 ? "up" : ""}">${ch ? (ch < 0 ? "▼ " : "▲ ") + pct(Math.abs(ch)) : "–"}</td>
+        <td><div class="marks"><span class="${m.fav ? "on" : ""}" title="Kedvenc">${m.fav ? "★" : "☆"}</span><span class="res ${m.research ? "on" : ""}" title="Kutatásra jelölve">${m.research ? "◉" : "○"}</span></div></td>
+      </tr>`;
+    }).join("");
+    $("tbody").querySelectorAll("tr").forEach(tr => {
+      tr.onclick = () => openDetail(tr.dataset.id);
+      tr.onkeydown = e => { if (e.key === "Enter") openDetail(tr.dataset.id); };
+    });
+  }
+  $("runs").innerHTML = S.runs.length ? S.runs.slice(-6).reverse().map(r =>
+    `<li><b>${huDate(r.date)}</b> · ${r.total ?? "?"} hirdetés${r.added ? `, ${r.added} új` : ""}${r.removed ? `, ${r.removed} lekerült` : ""}${r.changed ? `, ${r.changed} árváltozás` : ""}</li>`).join("")
+    : `<li style="color:var(--muted)">Még nem volt adatgyűjtés.</li>`;
+  if (S.selected) renderDrawer();
+}
+
+function priceChart(l) {
+  const h = hist(l);
+  if (h.length < 2) return `<p class="note">Eddig egy ármegfigyelés van (${huDate(h[0]?.d)}: ${mFt(h[0]?.p ?? l.price)}). A következő frissítéstől itt látod, hogyan mozog az ár.</p>`;
+  const W = 560, H = 150, pl = 58, pr = 12, pt = 12, pb = 26;
+  const t0 = Date.parse(h[0].d), t1 = Math.max(Date.parse(h[h.length - 1].d), Date.parse(today())), ps = h.map(x => x.p);
+  let lo = Math.min(...ps), hi = Math.max(...ps); const pad = Math.max((hi - lo) * 0.25, hi * 0.02); lo -= pad; hi += pad;
+  const X = t => pl + (W - pl - pr) * ((t - t0) / Math.max(1, t1 - t0)), Y = p => pt + (H - pt - pb) * (1 - (p - lo) / (hi - lo));
+  let d = `M${X(t0)},${Y(h[0].p)}`;
+  h.forEach((x, i) => { if (i) d += ` H${X(Date.parse(x.d))} V${Y(x.p)}`; });
+  d += ` H${X(t1)}`;
+  const area = d + ` V${H - pb} H${X(t0)} Z`;
+  const ticks = [lo + (hi - lo) * 0.15, (lo + hi) / 2, hi - (hi - lo) * 0.15];
+  const last = h[h.length - 1];
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Ártörténet">
+    ${ticks.map(t => `<line x1="${pl}" x2="${W - pr}" y1="${Y(t)}" y2="${Y(t)}" stroke="var(--line)" stroke-width="1"/><text x="${pl - 6}" y="${Y(t) + 4}" text-anchor="end">${(t / 1e6).toFixed(1)} M</text>`).join("")}
+    <path d="${area}" fill="var(--accent-soft)" stroke="none"/>
+    <path d="${d}" fill="none" stroke="var(--accent)" stroke-width="2"/>
+    ${h.map(x => `<circle cx="${X(Date.parse(x.d))}" cy="${Y(x.p)}" r="3" fill="var(--accent)"/>`).join("")}
+    <circle cx="${X(Date.parse(last.d))}" cy="${Y(last.p)}" r="5" fill="var(--surface)" stroke="var(--accent)" stroke-width="2"/>
+    <text x="${pl}" y="${H - 6}">${huDate(h[0].d)}</text><text x="${W - pr}" y="${H - 6}" text-anchor="end">${huDate(new Date(t1).toISOString().slice(0, 10))}</text>
+  </svg>
+  <dl class="kv">${h.map(x => `<dt>${huDate(x.d)}</dt><dd class="num">${mFt(x.p)}</dd>`).join("")}</dl>`;
+}
+
+function renderDrawer() {
+  const l = S.listings.find(x => x.id === S.selected); const dr = $("drawer");
+  if (!l) { closeDetail(); return; }
+  const v = ppm(l), os = osStatus(l), ref = districtRef(l), med = districtMedian(l), r = rentEstimate(l), y = grossYield(l), loan = loanCalc(l), m = mark(l.id);
+  const maxBar = Math.max(v || 0, med.v || 0, ref?.sale || 0, OS_MAX) * 1.05;
+  const bar = (lab, val, cls = "") => `<div class="bar ${cls}"><span class="lab">${lab}</span><span class="track">${val ? `<span class="fill" style="width:${(val / maxBar * 100).toFixed(1)}%"></span>` : ""}</span><span class="v">${m2k(val)}/m²</span></div>`;
+  const diff = (a, b) => a && b ? `${a < b ? "" : "+"}${((a / b - 1) * 100).toFixed(0)}%` : "–";
+  const meterPos = v ? Math.min(100, v / 2000000 * 100) : 0;
+  const val = l.value || {};
+  const research = l.research;
+  const imgs = gallery(l), th = thumbOf(l);
+  const pics = imgs.length ? imgs : th ? [th] : []; const spr = pics.length ? "" : sprHtml(l.id);
+  if (S.imgIdx >= pics.length) S.imgIdx = 0;
+  const imgNote = imgs.length ? `${imgs.length} kép az ingatlan.com-ról${l.imagesAt ? ", " + huDate(l.imagesAt) : ""}.`
+    : m.research ? `Most csak az indexkép van meg. A kutatáskor Claude letölti az összes elérhető képet.`
+    : `Most csak az indexkép van meg. A többi képet a <b>Kutasd ki</b> gomb után tölti le Claude.`;
+  dr.innerHTML = `
+  <div class="dhead">
+    <div class="dhead-row"><div style="min-width:0">
+      <h2 id="dTitle">${l.sample ? '<span class="pill sample">MINTA</span> ' : ""}${esc(l.address || l.title)}</h2>
+      <div class="sub">Budapest ${esc(l.district)}. kerület${l.title && l.address ? " · " + esc(l.title) : ""}</div></div>
+      <button class="close" id="dClose" aria-label="Bezárás">×</button></div>
+    <div class="row2"><div><div class="big">${mFt(l.price)}</div><div class="note">${m2k(v)}/m² · ${l.area ?? "–"} m²</div></div>
+      ${topRank(l) != null ? `<span class="pill top">TOP ${topRank(l)} / 15</span>` : ""}<span class="pill ${os.k}">Otthon Start: ${os.t}</span>${isGood(l) ? '<span class="pill good">Jó ár-érték</span>' : ""}${l.active === false ? '<span class="pill bad">Lekerült</span>' : ""}</div>
+    <div class="dactions">
+      ${l.url && !l.sample ? `<a class="btn primary" href="${esc(l.url)}" target="_blank" rel="noopener">Megnyitás az ingatlan.com-on ↗</a>` : ""}
+      <button class="btn" id="bFav" aria-pressed="${!!m.fav}">${m.fav ? "★ Kedvenc" : "☆ Kedvencnek jelölöm"}</button>
+      <button class="btn" id="bRes" aria-pressed="${!!m.research}">${m.research ? "◉ Kutatásra jelölve" : "○ Kutasd ki"}</button>
+    </div>
+  </div>
+  <div class="dbody">
+    <div class="sec"><h3>Képek ${imgs.length ? `<span class="note">${imgs.length} db</span>` : ""}</h3>
+      ${spr ? `<div class="gal"><div class="gal-main">${spr}</div></div>` : ""}${pics.length ? `<div class="gal">
+        <div class="gal-main"><img src="${esc(pics[S.imgIdx])}" alt="${S.imgIdx + 1}. kép">
+          ${pics.length > 1 ? `<button class="gal-nav prev" id="gPrev" aria-label="Előző kép">‹</button><button class="gal-nav next" id="gNext" aria-label="Következő kép">›</button>
+          <span class="cnt">${S.imgIdx + 1} / ${pics.length}</span>` : ""}</div>
+        ${pics.length > 1 ? `<div class="strip" id="gStrip">${pics.map((u, i) => `<button data-i="${i}" aria-label="${i + 1}. kép" aria-current="${i === S.imgIdx}"><img src="${esc(u)}" alt="" loading="lazy"></button>`).join("")}</div>` : ""}
+      </div>` : ""}
+      <p class="note">${pics.length || spr ? imgNote : "Ehhez a hirdetéshez még nincs kép. Az indexképet a következő frissítéskor gyűjti be Claude."}</p>
+    </div>
+
+    <div class="sec"><h3>Alapadatok</h3><div class="facts">
+      ${[["Szobák", l.rooms], ["Emelet", l.floor != null && l.floor !== "" ? l.floor + "." : null], ["Állapot", l.condition], ["Épület", l.buildingType], ["Fűtés", l.heating],
+         ["Lift", l.elevator == null ? null : l.elevator ? "van" : "nincs"], ["Erkély", l.balcony ? l.balcony + " m²" : null], ["Közös ktg.", l.commonCost ? kFt(l.commonCost) + "/hó" : null],
+         ["Első észlelés", huDate(l.firstSeen)], ["Utoljára látva", huDate(l.lastSeen)], ["Hirdetés-azonosító", l.sample ? "minta" : l.id]]
+        .filter(x => x[1] != null && x[1] !== "").map(([k, x]) => `<div class="fact"><span>${k}</span><b>${esc(x)}</b></div>`).join("")}
+    </div>${l.description ? `<p class="prose" style="color:var(--muted)">${esc(l.description)}</p>` : ""}</div>
+
+    <div class="sec"><h3>Otthon Start megfelelés <span class="pill ${os.k}">${os.t}</span></h3>
+      <div class="meter" aria-hidden="true"><em></em><i style="left:calc(${meterPos}% - 1px)"></i></div>
+      <div class="row2" style="justify-content:space-between;font-size:12px;color:var(--muted)"><span>0</span><span>1,5 M Ft/m² határ</span><span>2 M</span></div>
+      <p class="note">Ez a lakás ${m2k(v)}/m². A határ bruttó 1 500 000 Ft/m², és a rendelet a <b>teljes bruttó alapterülettel</b> számol. A hirdetésben általában a nettó terület szerepel, így 1,5 és 1,6 M Ft/m² között (határeset) a bruttó terület még beférhet. Ezt a bank értékbecslője dönti el.${l.osNote ? "<br>" + esc(l.osNote) : ""}</p>
+    </div>
+
+    <div class="sec"><h3>Négyzetméterárak a környéken</h3>
+      <div class="bars">
+        ${bar("Ez a lakás", v, "me")}
+        ${bar(`Gyűjtött ${l.district}. ker. medián (${med.n} db)`, med.v)}
+        ${bar(`${l.district}. ker. átlag (referencia)`, ref?.sale)}
+        ${bar("Otthon Start határ", OS_MAX)}
+      </div>
+      <p class="note">A gyűjtött mediánhoz képest <b>${diff(v, med.v)}</b>, a kerületi referenciaátlaghoz képest <b>${diff(v, ref?.sale)}</b>. A gyűjtött medián csak a 30–50 M Ft-os, Otthon Start-os sávot mutatja, ezért alacsonyabb a teljes kerületi átlagnál.${S.districts?.source ? ` Referencia: ${esc(S.districts.source)}${S.districts.updated ? " (" + huDate(S.districts.updated) + ")" : ""}.` : ""}</p>
+    </div>
+
+    <div class="sec"><h3>Kiadhatóság</h3>
+      ${r ? `<div class="row2">
+        <div><div class="note">Várható havi bérleti díj</div><div class="big">${kFt(r.low).replace(" Ft", "")}–${kFt(r.high)}</div></div>
+        <div><div class="note">Bruttó hozam</div><div class="big">${pct(y)}</div></div></div>
+      <dl class="kv">
+        <dt>Hitel (90%, max 50 M)</dt><dd class="num">${mFt(loan.loan)} · önerő ${mFt(loan.own)}</dd>
+        <dt>Havi törlesztő (3%, 25 év)</dt><dd class="num">${kFt(loan.pay)}</dd>
+        <dt>Bérleti díj − törlesztő</dt><dd class="num" style="color:${r.mid - loan.pay >= 0 ? "var(--good)" : "var(--bad)"}">${r.mid - loan.pay >= 0 ? "+" : ""}${kFt(r.mid - loan.pay)}/hó</dd>
+        <dt>Forrás</dt><dd>${esc(r.src)}${r.note ? " · " + esc(r.note) : ""}</dd>
+      </dl>
+      <p class="note">A törlesztő tájékoztató annuitásos számítás. A közös költség, az üresjárat és az adó (bruttó hozam ≈ nettó + 20–25%) nincs benne.</p>`
+      : `<p class="note">Ehhez a kerülethez még nincs bérleti referenciaadat.</p>`}
+    </div>
+
+    <div class="sec"><h3>Ár-érték elemzés ${val.score ? `<span class="score" aria-label="${val.score} az 5-ből">${[1,2,3,4,5].map(i => `<i class="${i <= val.score ? "on" : ""}"></i>`).join("")}</span>` : ""}</h3>
+      ${val.summary ? `<p class="prose">${esc(val.summary)}</p>
+        ${(val.pros?.length || val.cons?.length) ? `<div class="pc"><div class="pro"><h4>Mellette</h4><ul>${(val.pros || []).map(x => `<li>${esc(x)}</li>`).join("")}</ul></div>
+        <div class="con"><h4>Ellene</h4><ul>${(val.cons || []).map(x => `<li>${esc(x)}</li>`).join("")}</ul></div></div>` : ""}
+        ${val.top15?.listedEst ? `<dl class="kv"><dt>Becsült feltöltés</dt><dd>${esc(val.top15.listedEst)}${val.top15.ageDays ? ` (kb. ${val.top15.ageDays[0]}–${val.top15.ageDays[1]} napja)` : ""}</dd>${val.top15.duplicateOf ? `<dt>Korábbi hirdetése</dt><dd class="num">${esc(val.top15.duplicateOf)}</dd>` : ""}</dl>
+        ${val.top15.method ? `<p class="note">${esc(val.top15.method)}</p>` : ""}` : ""}
+        ${val.analyzedAt ? `<p class="note">A leírás és a fotók alapján elemezte Claude, ${huDate(val.analyzedAt)}.</p>` : ""}`
+      : `<p class="note">Ezt a hirdetést Claude még nem elemezte. A következő frissítéskor a leírás és a fotók alapján elkészül.</p>`}
+    </div>
+
+    <div class="sec"><h3>Ártörténet</h3>${priceChart(l)}</div>
+
+    <div class="sec"><h3>Részletes kutatás ${research?.updatedAt ? `<span class="note">${huDate(research.updatedAt)}</span>` : ""}</h3>
+      ${research?.notes || research?.items?.length ? `
+        ${research.items?.length ? `<dl class="kv">${research.items.map(x => `<dt>${esc(x.label)}</dt><dd>${esc(x.value)}</dd>`).join("")}</dl>` : ""}
+        ${research.notes ? `<p class="prose">${esc(research.notes)}</p>` : ""}`
+      : m.research ? `<p class="note">Kutatásra jelölve. Írd Claude-nak: <b>„kutasd ki a kijelölt lakásokat”</b>. A kutatás az összes képet is letölti.</p>`
+      : `<p class="note">Ha többet akarsz tudni erről a lakásról (ház, környék, közlekedés, hasonló hirdetések, korábbi hirdetései, az összes kép), nyomd meg fent a <b>Kutasd ki</b> gombot.</p>`}
+    </div>
+
+    <div class="sec"><h3>Saját jegyzet</h3>
+      <textarea id="dNote" placeholder="pl. megnézni szombaton, hívni a hirdetőt…">${esc(m.note || "")}</textarea>
+      <p class="note" id="noteState">Automatikusan mentődik, amikor kikattintasz a mezőből.</p>
+    </div>
+  </div>`;
+  $("dClose").onclick = closeDetail;
+  const go = i => { S.imgIdx = (i + pics.length) % pics.length; renderDrawer(); };
+  if ($("gPrev")) { $("gPrev").onclick = () => go(S.imgIdx - 1); $("gNext").onclick = () => go(S.imgIdx + 1); }
+  $("gStrip")?.querySelectorAll("button").forEach(b => b.onclick = () => go(Number(b.dataset.i)));
+  $("bFav").onclick = () => saveMark(l.id, {fav: !m.fav});
+  $("bRes").onclick = () => saveMark(l.id, {research: !m.research, researchAt: !m.research ? today() : null});
+  $("dNote").onblur = e => { if ((m.note || "") !== e.target.value) saveMark(l.id, {note: e.target.value}); };
+}
+
+function openDetail(id) {
+  S.selected = id; S.imgIdx = 0; $("drawer").hidden = false; $("scrim").hidden = false;
+  renderDrawer(); render(); setTimeout(() => $("dClose")?.focus(), 30);
+}
+function closeDetail() {
+  const id = S.selected; S.selected = null; $("drawer").hidden = true; $("scrim").hidden = true; render();
+  document.querySelector(`tr[data-id="${CSS.escape(id || "")}"]`)?.focus();
+}
+$("scrim").onclick = closeDetail;
+document.addEventListener("keydown", e => { if (e.key === "Escape" && S.selected) closeDetail(); });
+// a missing or blocked image falls back to the empty tile instead of a broken icon
+document.addEventListener("error", e => { if (e.target.tagName === "IMG") e.target.classList.add("broken"); }, true);
+
+function toast(t) { const el = $("toast"); el.textContent = t; el.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => el.hidden = true, 2200); }
+
+const pending = {};
+async function saveMark(id, patch) {
+  if (!db) { toast("A mentés nem érhető el ebben a nézetben."); return; }
+  const next = {...mark(id), ...patch, updatedAt: today()};
+  S.marks[id] = next; render();
+  try {
+    await (pending[id] || Promise.resolve());
+    pending[id] = db.collection("marks").doc(id).set(next);
+    await pending[id];
+    toast(patch.fav !== undefined ? (next.fav ? "Kedvencekhez adva" : "Kivéve a kedvencek közül")
+      : patch.research !== undefined ? (next.research ? "Kutatásra jelölve" : "Kutatás kijelölése törölve") : "Jegyzet elmentve");
+  } catch (e) { toast("Nem sikerült menteni. Próbáld újra."); }
+}
+
+/* ---------- data ---------- */
+loadPrefs(); bindFilters(); db = undefined; render();
+(async () => {
+  db = window.claude?.use ? await window.claude.use("db").catch(() => null) : null;
+  if (!db) { render(); return; }
+  db.collection("listings").onSnapshot(s => { S.listings = s.docs.map(d => ({id: d.id, ...d.data()})); render(); }, () => render());
+  db.collection("marks").onSnapshot(s => { S.marks = Object.fromEntries(s.docs.map(d => [d.id, d.data()])); render(); });
+  db.collection("meta").onSnapshot(s => {
+    for (const d of s.docs) {
+      if (d.id === "districts") S.districts = d.data();
+      if (d.id === "config") S.config = d.data();
+      if (d.id === "runs") S.runs = d.data().runs || [];
+    }
+    render();
+  });
+})();
+})();
+</script>
+
+</body></html>
